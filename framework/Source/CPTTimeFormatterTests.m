@@ -9,17 +9,17 @@
 -(void)testKeyedArchivingRoundTrip
 {
     NSDate *refDate                = [NSDate dateWithNaturalLanguageString:@"12:00 Oct 29, 2009"];
-    NSDateFormatter *dateFormatter = [[[NSDateFormatter alloc] init] autorelease];
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
 
     dateFormatter.dateStyle = NSDateFormatterShortStyle;
 
-    CPTTimeFormatter *timeFormatter = [[[CPTTimeFormatter alloc] initWithDateFormatter:dateFormatter] autorelease];
+    CPTTimeFormatter *timeFormatter = [[CPTTimeFormatter alloc] initWithDateFormatter:dateFormatter];
     timeFormatter.referenceDate = refDate;
 
     CPTTimeFormatter *newTimeFormatter = [NSKeyedUnarchiver unarchiveObjectWithData:[NSKeyedArchiver archivedDataWithRootObject:timeFormatter]];
 
-    STAssertEqualObjects(timeFormatter.dateFormatter.dateFormat, newTimeFormatter.dateFormatter.dateFormat, @"Date formatter not equal");
-    STAssertEqualObjects(timeFormatter.referenceDate, newTimeFormatter.referenceDate, @"Reference date not equal");
+    XCTAssertEqualObjects(timeFormatter.dateFormatter.dateFormat, newTimeFormatter.dateFormatter.dateFormat, @"Date formatter not equal");
+    XCTAssertEqualObjects(timeFormatter.referenceDate, newTimeFormatter.referenceDate, @"Reference date not equal");
 }
 
 @end

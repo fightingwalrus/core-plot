@@ -6,6 +6,10 @@
 #import "CPTPlatformSpecificFunctions.h"
 #import "tgmath.h"
 
+// disable warnings when compiling with deployment target of iOS 6+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-pointer-compare"
+
 @implementation CPTTextStyle(CPTPlatformSpecificTextStyleExtensions)
 
 /** @property NSDictionary *attributes
@@ -34,7 +38,7 @@
  *  @param attributes A dictionary of standard text attributes.
  *  @return A new CPTTextStyle instance.
  **/
-+(id)textStyleWithAttributes:(NSDictionary *)attributes
++(instancetype)textStyleWithAttributes:(NSDictionary *)attributes
 {
     CPTMutableTextStyle *newStyle = [CPTMutableTextStyle textStyle];
 
@@ -42,7 +46,7 @@
     BOOL hasFontAttributeName = (&NSFontAttributeName != NULL);
 
     if ( hasFontAttributeName ) {
-        UIFont *styleFont = [attributes valueForKey:NSFontAttributeName];
+        UIFont *styleFont = attributes[NSFontAttributeName];
 
         if ( styleFont ) {
             newStyle.fontName = styleFont.fontName;
@@ -54,7 +58,7 @@
     BOOL hasColorAttributeName = (&NSForegroundColorAttributeName != NULL);
 
     if ( hasColorAttributeName ) {
-        UIColor *styleColor = [attributes valueForKey:NSForegroundColorAttributeName];
+        UIColor *styleColor = attributes[NSForegroundColorAttributeName];
         if ( styleColor ) {
             newStyle.color = [CPTColor colorWithCGColor:styleColor.CGColor];
         }
@@ -64,14 +68,14 @@
     BOOL hasParagraphAttributeName = (&NSParagraphStyleAttributeName != NULL);
 
     if ( hasParagraphAttributeName ) {
-        NSParagraphStyle *paragraphStyle = [attributes valueForKey:NSParagraphStyleAttributeName];
+        NSParagraphStyle *paragraphStyle = attributes[NSParagraphStyleAttributeName];
         if ( paragraphStyle ) {
             newStyle.textAlignment = (CPTTextAlignment)paragraphStyle.alignment;
             newStyle.lineBreakMode = paragraphStyle.lineBreakMode;
         }
     }
 
-    return [[newStyle copy] autorelease];
+    return [newStyle copy];
 }
 
 #pragma mark -
@@ -87,7 +91,12 @@
     BOOL hasFontAttributeName = (&NSFontAttributeName != NULL);
 
     if ( hasFontAttributeName ) {
-        UIFont *styleFont = [UIFont fontWithName:self.fontName size:self.fontSize];
+        UIFont *styleFont  = nil;
+        NSString *fontName = self.fontName;
+
+        if ( fontName ) {
+            styleFont = [UIFont fontWithName:fontName size:self.fontSize];
+        }
 
         if ( styleFont ) {
             [myAttributes setValue:styleFont
@@ -117,11 +126,9 @@
 
         [myAttributes setValue:paragraphStyle
                         forKey:NSParagraphStyleAttributeName];
-
-        [paragraphStyle release];
     }
 
-    return [[myAttributes copy] autorelease];
+    return [myAttributes copy];
 }
 
 /// @endcond
@@ -134,7 +141,7 @@
 
 /// @cond
 
-+(id)textStyleWithAttributes:(NSDictionary *)attributes
++(instancetype)textStyleWithAttributes:(NSDictionary *)attributes
 {
     CPTMutableTextStyle *newStyle = [CPTMutableTextStyle textStyle];
 
@@ -142,7 +149,7 @@
     BOOL hasFontAttributeName = (&NSFontAttributeName != NULL);
 
     if ( hasFontAttributeName ) {
-        UIFont *styleFont = [attributes valueForKey:NSFontAttributeName];
+        UIFont *styleFont = attributes[NSFontAttributeName];
 
         if ( styleFont ) {
             newStyle.fontName = styleFont.fontName;
@@ -154,7 +161,7 @@
     BOOL hasColorAttributeName = (&NSForegroundColorAttributeName != NULL);
 
     if ( hasColorAttributeName ) {
-        UIColor *styleColor = [attributes valueForKey:NSForegroundColorAttributeName];
+        UIColor *styleColor = attributes[NSForegroundColorAttributeName];
 
         if ( styleColor ) {
             newStyle.color = [CPTColor colorWithCGColor:styleColor.CGColor];
@@ -165,7 +172,7 @@
     BOOL hasParagraphAttributeName = (&NSParagraphStyleAttributeName != NULL);
 
     if ( hasParagraphAttributeName ) {
-        NSParagraphStyle *paragraphStyle = [attributes valueForKey:NSParagraphStyleAttributeName];
+        NSParagraphStyle *paragraphStyle = attributes[NSParagraphStyleAttributeName];
 
         if ( paragraphStyle ) {
             newStyle.textAlignment = (CPTTextAlignment)paragraphStyle.alignment;
@@ -206,7 +213,12 @@
         textSize.height = ceil(textSize.height);
     }
     else {
-        UIFont *theFont = [UIFont fontWithName:style.fontName size:style.fontSize];
+        UIFont *theFont    = nil;
+        NSString *fontName = style.fontName;
+
+        if ( fontName ) {
+            theFont = [UIFont fontWithName:fontName size:style.fontSize];
+        }
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -248,7 +260,15 @@
                    context:nil];
     }
     else {
-        UIFont *theFont = [UIFont fontWithName:style.fontName size:style.fontSize];
+        UIColor *styleColor = style.attributes[NSForegroundColorAttributeName];
+        [styleColor set];
+
+        UIFont *theFont    = nil;
+        NSString *fontName = style.fontName;
+
+        if ( fontName ) {
+            theFont = [UIFont fontWithName:fontName size:style.fontSize];
+        }
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -259,6 +279,9 @@
 #pragma clang diagnostic pop
     }
 #else
+    UIColor *styleColor = style.attributes[NSForegroundColorAttributeName];
+    [styleColor set];
+
     UIFont *theFont = [UIFont fontWithName:style.fontName size:style.fontSize];
 
     [self drawInRect:rect
@@ -270,5 +293,7 @@
     CGContextRestoreGState(context);
     CPTPopCGContext();
 }
+
+#pragma clang diagnostic pop
 
 @end

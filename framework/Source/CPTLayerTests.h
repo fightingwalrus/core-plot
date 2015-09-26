@@ -2,12 +2,9 @@
 
 @class CPTLayer;
 
-@interface CPTLayerTests : CPTTestCase {
-    CPTLayer *layer;
-    NSArray *positions;
-}
+@interface CPTLayerTests : CPTTestCase
 
-@property (readwrite, retain) CPTLayer *layer;
-@property (readwrite, retain) NSArray *positions;
+@property (nonatomic, readwrite, strong) CPTLayer *layer;
+@property (nonatomic, readwrite, strong) NSArray *positions;
 
 @end

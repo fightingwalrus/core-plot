@@ -1,31 +1,37 @@
 #import "APFinancialData.h"
 #import "APYahooDataPuller.h"
 
-NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
-{
-    NSTimeInterval seconds = fabs(60.0 * 60.0 * 24.0 * 7.0 * numberOfWeeks);
-
-    return seconds;
-}
-
 @interface APYahooDataPuller()
 
-@property (nonatomic, copy) NSString *csvString;
-@property (nonatomic, retain) NSMutableData *receivedData;
-@property (nonatomic, retain) NSURLConnection *connection;
-@property (nonatomic, assign) BOOL loadingData;
-@property (nonatomic, readwrite, retain) NSDecimalNumber *overallHigh;
-@property (nonatomic, readwrite, retain) NSDecimalNumber *overallLow;
-@property (nonatomic, readwrite, retain) NSDecimalNumber *overallVolumeHigh;
-@property (nonatomic, readwrite, retain) NSDecimalNumber *overallVolumeLow;
-@property (nonatomic, readwrite, retain) NSArray *financialData;
+@property (nonatomic, readwrite, copy) NSString *csvString;
+
+@property (nonatomic, readwrite, strong) NSDecimalNumber *overallHigh;
+@property (nonatomic, readwrite, strong) NSDecimalNumber *overallLow;
+@property (nonatomic, readwrite, strong) NSDecimalNumber *overallVolumeHigh;
+@property (nonatomic, readwrite, strong) NSDecimalNumber *overallVolumeLow;
+@property (nonatomic, readwrite, strong) NSArray *financialData;
+
+@property (nonatomic, readwrite, assign) BOOL loadingData;
+@property (nonatomic, readwrite, strong) NSMutableData *receivedData;
+@property (nonatomic, readwrite, strong) NSURLConnection *connection;
 
 -(void)fetch;
 -(NSString *)URL;
 -(void)notifyPulledData;
 -(void)parseCSVAndPopulate;
 
+NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks);
+
 @end
+
+#pragma mark -
+
+NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
+{
+    NSTimeInterval seconds = fabs(60.0 * 60.0 * 24.0 * 7.0 * numberOfWeeks);
+
+    return seconds;
+}
 
 @implementation APYahooDataPuller
 
@@ -46,16 +52,13 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
 @synthesize connection;
 @synthesize loadingData;
 
--(id)delegate
-{
-    return delegate;
-}
+@synthesize delegate;
 
 -(void)setDelegate:(id)aDelegate
 {
     if ( delegate != aDelegate ) {
         delegate = aDelegate;
-        if ( [self.financialData count] > 0 ) {
+        if ( self.financialData.count > 0 ) {
             [self notifyPulledData]; //loads cached data onto UI
         }
     }
@@ -65,14 +68,14 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
 {
     NSMutableDictionary *rep = [NSMutableDictionary dictionaryWithCapacity:7];
 
-    [rep setObject:[self symbol] forKey:@"symbol"];
-    [rep setObject:[self startDate] forKey:@"startDate"];
-    [rep setObject:[self endDate] forKey:@"endDate"];
-    [rep setObject:[self overallHigh] forKey:@"overallHigh"];
-    [rep setObject:[self overallLow] forKey:@"overallLow"];
-    [rep setObject:[self overallVolumeHigh] forKey:@"overallVolumeHigh"];
-    [rep setObject:[self overallVolumeLow] forKey:@"overallVolumeLow"];
-    [rep setObject:[self financialData] forKey:@"financalData"];
+    rep[@"symbol"]            = [self symbol];
+    rep[@"startDate"]         = [self startDate];
+    rep[@"endDate"]           = [self endDate];
+    rep[@"overallHigh"]       = [self overallHigh];
+    rep[@"overallLow"]        = [self overallLow];
+    rep[@"overallVolumeHigh"] = [self overallVolumeHigh];
+    rep[@"overallVolumeLow"]  = [self overallVolumeLow];
+    rep[@"financialData"]     = [self financialData];
     return [NSDictionary dictionaryWithDictionary:rep];
 }
 
@@ -83,16 +86,16 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
     return success;
 }
 
--(id)initWithDictionary:(NSDictionary *)aDict targetSymbol:(NSString *)aSymbol targetStartDate:(NSDate *)aStartDate targetEndDate:(NSDate *)anEndDate
+-(instancetype)initWithDictionary:(NSDictionary *)aDict targetSymbol:(NSString *)aSymbol targetStartDate:(NSDate *)aStartDate targetEndDate:(NSDate *)anEndDate
 {
     self = [super init];
     if ( self != nil ) {
-        self.symbol        = [aDict objectForKey:@"symbol"];
-        self.startDate     = [aDict objectForKey:@"startDate"];
-        self.overallLow    = [NSDecimalNumber decimalNumberWithDecimal:[[aDict objectForKey:@"overallLow"] decimalValue]];
-        self.overallHigh   = [NSDecimalNumber decimalNumberWithDecimal:[[aDict objectForKey:@"overallHigh"] decimalValue]];
-        self.endDate       = [aDict objectForKey:@"endDate"];
-        self.financialData = [aDict objectForKey:@"financalData"];
+        self.symbol        = aDict[@"symbol"];
+        self.startDate     = aDict[@"startDate"];
+        self.overallLow    = [NSDecimalNumber decimalNumberWithDecimal:[aDict[@"overallLow"] decimalValue]];
+        self.overallHigh   = [NSDecimalNumber decimalNumberWithDecimal:[aDict[@"overallHigh"] decimalValue]];
+        self.endDate       = aDict[@"endDate"];
+        self.financialData = aDict[@"financialData"];
 
         self.targetSymbol    = aSymbol;
         self.targetStartDate = aStartDate;
@@ -106,7 +109,7 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
 -(NSString *)pathForSymbol:(NSString *)aSymbol
 {
     NSArray *paths               = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *documentsDirectory = paths[0];
     NSString *docPath            = [documentsDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.plist", aSymbol]];
 
     return docPath;
@@ -132,7 +135,7 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
     return localPlistDict;
 }
 
--(id)initWithTargetSymbol:(NSString *)aSymbol targetStartDate:(NSDate *)aStartDate targetEndDate:(NSDate *)anEndDate
+-(instancetype)initWithTargetSymbol:(NSString *)aSymbol targetStartDate:(NSDate *)aStartDate targetEndDate:(NSDate *)anEndDate
 {
     NSDictionary *cachedDictionary = [self dictionaryForSymbol:aSymbol];
 
@@ -141,16 +144,16 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
     }
 
     NSMutableDictionary *rep = [NSMutableDictionary dictionaryWithCapacity:7];
-    [rep setObject:aSymbol forKey:@"symbol"];
-    [rep setObject:aStartDate forKey:@"startDate"];
-    [rep setObject:anEndDate forKey:@"endDate"];
-    [rep setObject:[NSDecimalNumber notANumber] forKey:@"overallHigh"];
-    [rep setObject:[NSDecimalNumber notANumber] forKey:@"overallLow"];
-    [rep setObject:[NSArray array] forKey:@"financalData"];
+    rep[@"symbol"]        = aSymbol;
+    rep[@"startDate"]     = aStartDate;
+    rep[@"endDate"]       = anEndDate;
+    rep[@"overallHigh"]   = [NSDecimalNumber notANumber];
+    rep[@"overallLow"]    = [NSDecimalNumber notANumber];
+    rep[@"financialData"] = @[];
     return [self initWithDictionary:rep targetSymbol:aSymbol targetStartDate:aStartDate targetEndDate:anEndDate];
 }
 
--(id)init
+-(instancetype)init
 {
     NSTimeInterval secondsAgo = -timeIntervalForNumberOfWeeks(14.0); //12 weeks ago
     NSDate *start             = [NSDate dateWithTimeIntervalSinceNow:secondsAgo];
@@ -162,43 +165,29 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
 
 -(void)dealloc
 {
-    [symbol release];
-    [startDate release];
-    [endDate release];
-    [csvString release];
-    [financialData release];
-
-    symbol        = nil;
-    startDate     = nil;
-    endDate       = nil;
-    csvString     = nil;
-    financialData = nil;
-
     delegate = nil;
-    [super dealloc];
 }
 
 // http://www.goldb.org/ystockquote.html
 -(NSString *)URL
 {
-    unsigned int unitFlags = NSMonthCalendarUnit | NSDayCalendarUnit | NSYearCalendarUnit;
+    unsigned int unitFlags = NSCalendarUnitMonth | NSCalendarUnitDay | NSCalendarUnitYear;
 
     NSCalendar *gregorian = [[NSCalendar alloc]
-                             initWithCalendarIdentifier:NSGregorianCalendar];
+                             initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
 
-    NSDateComponents *compsStart = [gregorian components:unitFlags fromDate:targetStartDate];
-    NSDateComponents *compsEnd   = [gregorian components:unitFlags fromDate:targetEndDate];
-
-    [gregorian release];
+    NSDateComponents *compsStart = [gregorian components:unitFlags fromDate:self.targetStartDate];
+    NSDateComponents *compsEnd   = [gregorian components:unitFlags fromDate:self.targetEndDate];
 
     NSString *url = [NSString stringWithFormat:@"http://ichart.yahoo.com/table.csv?s=%@&", [self targetSymbol]];
-    url = [url stringByAppendingFormat:@"a=%d&", [compsStart month] - 1];
-    url = [url stringByAppendingFormat:@"b=%d&", [compsStart day]];
-    url = [url stringByAppendingFormat:@"c=%d&", [compsStart year]];
 
-    url = [url stringByAppendingFormat:@"d=%d&", [compsEnd month] - 1];
-    url = [url stringByAppendingFormat:@"e=%d&", [compsEnd day]];
-    url = [url stringByAppendingFormat:@"f=%d&", [compsEnd year]];
+    url = [url stringByAppendingFormat:@"a=%ld&", (long)[compsStart month] - 1];
+    url = [url stringByAppendingFormat:@"b=%ld&", (long)[compsStart day]];
+    url = [url stringByAppendingFormat:@"c=%ld&", (long)[compsStart year]];
+
+    url = [url stringByAppendingFormat:@"d=%ld&", (long)[compsEnd month] - 1];
+    url = [url stringByAppendingFormat:@"e=%ld&", (long)[compsEnd day]];
+    url = [url stringByAppendingFormat:@"f=%ld&", (long)[compsEnd year]];
     url = [url stringByAppendingString:@"g=d&"];
 
     url = [url stringByAppendingString:@"ignore=.csv"];
@@ -208,8 +197,10 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
 
 -(void)notifyPulledData
 {
-    if ( delegate && [delegate respondsToSelector:@selector(dataPullerDidFinishFetch:)] ) {
-        [delegate performSelector:@selector(dataPullerDidFinishFetch:) withObject:self];
+    id theDelegate = self.delegate;
+
+    if ( [theDelegate respondsToSelector:@selector(dataPullerDidFinishFetch:)] ) {
+        [theDelegate performSelector:@selector(dataPullerDidFinishFetch:) withObject:self];
     }
 }
 
@@ -293,16 +284,32 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
 
     NSString *csv = [[NSString alloc] initWithData:self.receivedData encoding:NSUTF8StringEncoding];
     self.csvString = csv;
-    [csv release];
 
     self.receivedData = nil;
     [self parseCSVAndPopulate];
 
     //see if we need to write to file
     NSDictionary *dictionaryForSymbol = [self dictionaryForSymbol:self.symbol];
-    if ( ![[self symbol] isEqualToString:[dictionaryForSymbol objectForKey:@"symbol"]] ||
-         ([[self startDate] compare:[dictionaryForSymbol objectForKey:@"startDate"]] != NSOrderedSame) ||
-         ([[self endDate] compare:[dictionaryForSymbol objectForKey:@"endDate"]] != NSOrderedSame) ) {
+
+    BOOL sameSymbol      = NO;
+    NSString *dictSymbol = dictionaryForSymbol[@"symbol"];
+    if ( dictSymbol ) {
+        sameSymbol = [[self symbol] isEqualToString:dictSymbol];
+    }
+
+    BOOL sameStart    = NO;
+    NSDate *dictStart = dictionaryForSymbol[@"startDate"];
+    if ( dictStart ) {
+        sameStart = ([[self startDate] compare:dictStart] != NSOrderedSame);
+    }
+
+    BOOL sameEnd    = NO;
+    NSDate *dictEnd = dictionaryForSymbol[@"endDate"];
+    if ( dictEnd ) {
+        sameEnd = ([[self startDate] compare:dictEnd] != NSOrderedSame);
+    }
+
+    if ( !sameSymbol || !sameStart || !sameEnd ) {
         [self writeToFile:[self pathForSymbol:self.symbol] atomically:YES];
     }
     else {
@@ -323,13 +330,13 @@ NSTimeInterval timeIntervalForNumberOfWeeks(double numberOfWeeks)
     self.overallVolumeLow  = [NSDecimalNumber notANumber];
 
     for ( NSUInteger i = 1; i < [csvLines count] - 1; i++ ) {
-        line             = (NSString *)[csvLines objectAtIndex:i];
+        line             = (NSString *)csvLines[i];
         currentFinancial = [NSDictionary dictionaryWithCSVLine:line];
         [newFinancials addObject:currentFinancial];
 
-        NSDecimalNumber *high   = [currentFinancial objectForKey:@"high"];
-        NSDecimalNumber *low    = [currentFinancial objectForKey:@"low"];
-        NSDecimalNumber *volume = [currentFinancial objectForKey:@"volume"];
+        NSDecimalNumber *high   = currentFinancial[@"high"];
+        NSDecimalNumber *low    = currentFinancial[@"low"];
+        NSDecimalNumber *volume = currentFinancial[@"volume"];
 
         if ( [self.overallHigh isEqual:[NSDecimalNumber notANumber]] ) {
             self.overallHigh = high;

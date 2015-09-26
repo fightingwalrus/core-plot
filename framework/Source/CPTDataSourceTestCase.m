@@ -24,16 +24,10 @@ static const CGFloat CPTDataSourceTestCasePlotOffset = 0.5;
 @dynamic yRange;
 @synthesize plots;
 
--(void)dealloc
-{
-    self.plots = nil;
-    [super dealloc];
-}
-
 -(void)setUp
 {
     //check CPTDataSource conformance
-    STAssertTrue([self conformsToProtocol:@protocol(CPTPlotDataSource)], @"CPTDataSourceTestCase should conform to <CPTPlotDataSource>");
+    XCTAssertTrue([self conformsToProtocol:@protocol(CPTPlotDataSource)], @"CPTDataSourceTestCase should conform to <CPTPlotDataSource>");
 }
 
 -(void)tearDown
@@ -45,16 +39,18 @@ static const CGFloat CPTDataSourceTestCasePlotOffset = 0.5;
 
 -(void)buildData
 {
-    NSMutableArray *arr = [NSMutableArray arrayWithCapacity:self.nRecords];
+    NSUInteger recordCount = self.nRecords;
 
-    for ( NSUInteger i = 0; i < self.nRecords; i++ ) {
-        [arr insertObject:[NSDecimalNumber numberWithUnsignedInteger:i] atIndex:i];
+    NSMutableArray *arr = [NSMutableArray arrayWithCapacity:recordCount];
+
+    for ( NSUInteger i = 0; i < recordCount; i++ ) {
+        [arr insertObject:@(i) atIndex:i];
     }
     self.xData = arr;
 
-    arr = [NSMutableArray arrayWithCapacity:self.nRecords];
-    for ( NSUInteger i = 0; i < self.nRecords; i++ ) {
-        [arr insertObject:[NSDecimalNumber numberWithDouble:sin(2 * M_PI * (double)i / (double)nRecords)] atIndex:i];
+    arr = [NSMutableArray arrayWithCapacity:recordCount];
+    for ( NSUInteger i = 0; i < recordCount; i++ ) {
+        [arr insertObject:@( sin(2 * M_PI * (double)i / (double)recordCount) ) atIndex:i];
     }
     self.yData = arr;
 }
@@ -118,7 +114,7 @@ static const CGFloat CPTDataSourceTestCasePlotOffset = 0.5;
         case CPTScatterPlotFieldY:
             result = [[self yData] objectsAtIndexes:[NSIndexSet indexSetWithIndexesInRange:indexRange]];
             if ( self.plots.count > 1 ) {
-                STAssertTrue([[self plots] containsObject:plot], @"Plot missing");
+                XCTAssertTrue([[self plots] containsObject:plot], @"Plot missing");
                 NSMutableArray *shiftedResult = [NSMutableArray arrayWithCapacity:result.count];
                 for ( NSDecimalNumber *d in result ) {
                     [shiftedResult addObject:[d decimalNumberByAdding:[NSDecimalNumber decimalNumberWithDecimal:CPTDecimalFromDouble( CPTDataSourceTestCasePlotOffset * ([[self plots] indexOfObject:plot] + 1) )]]];

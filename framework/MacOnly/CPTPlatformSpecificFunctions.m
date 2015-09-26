@@ -1,31 +1,40 @@
 #import "CPTPlatformSpecificFunctions.h"
 
-/** @brief Node in a linked list of graphics contexts.
-**/
-typedef struct _CPTContextNode {
-    NSGraphicsContext *context;       ///< The graphics context.
-    struct _CPTContextNode *nextNode; ///< Pointer to the next node in the list.
-}
-CPTContextNode;
-
-#pragma mark -
 #pragma mark Graphics Context
 
 // linked list to store saved contexts
-static CPTContextNode *pushedContexts = NULL;
+static NSMutableArray *pushedContexts   = nil;
+static dispatch_once_t contextOnceToken = 0;
+
+static dispatch_queue_t contextQueue  = NULL;
+static dispatch_once_t queueOnceToken = 0;
 
 /** @brief Pushes the current AppKit graphics context onto a stack and replaces it with the given Core Graphics context.
  *  @param newContext The graphics context.
  **/
 void CPTPushCGContext(CGContextRef newContext)
 {
-    if ( newContext ) {
-        CPTContextNode *newNode = malloc( sizeof(CPTContextNode) );
-        newNode->context = [NSGraphicsContext currentContext];
-        [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:newContext flipped:NO]];
-        newNode->nextNode = pushedContexts;
-        pushedContexts    = newNode;
-    }
+    dispatch_once(&contextOnceToken, ^{
+        pushedContexts = [[NSMutableArray alloc] init];
+    });
+    dispatch_once(&queueOnceToken, ^{
+        contextQueue = dispatch_queue_create("CorePlot.contextQueue", NULL);
+    });
+
+    dispatch_sync(contextQueue, ^{
+        NSGraphicsContext *currentContext = [NSGraphicsContext currentContext];
+
+        if ( currentContext ) {
+            [pushedContexts addObject:currentContext];
+        }
+        else {
+            [pushedContexts addObject:[NSNull null]];
+        }
+
+        if ( newContext ) {
+            [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:newContext flipped:NO]];
+        }
+    });
 }
 
 /**
@@ -33,12 +42,27 @@ void CPTPushCGContext(CGContextRef newContext)
  **/
 void CPTPopCGContext(void)
 {
-    if ( pushedContexts ) {
-        [NSGraphicsContext setCurrentContext:pushedContexts->context];
-        CPTContextNode *next = pushedContexts->nextNode;
-        free(pushedContexts);
-        pushedContexts = next;
-    }
+    dispatch_once(&contextOnceToken, ^{
+        pushedContexts = [[NSMutableArray alloc] init];
+    });
+    dispatch_once(&queueOnceToken, ^{
+        contextQueue = dispatch_queue_create("CorePlot.contextQueue", NULL);
+    });
+
+    dispatch_sync(contextQueue, ^{
+        if ( pushedContexts.count > 0 ) {
+            NSGraphicsContext *lastContext = pushedContexts.lastObject;
+
+            if ( [lastContext isKindOfClass:[NSGraphicsContext class]] ) {
+                [NSGraphicsContext setCurrentContext:lastContext];
+            }
+            else {
+                [NSGraphicsContext setCurrentContext:nil];
+            }
+
+            [pushedContexts removeLastObject];
+        }
+    });
 }
 
 #pragma mark -
@@ -49,7 +73,9 @@ void CPTPopCGContext(void)
  **/
 CGContextRef CPTGetCurrentContext(void)
 {
-    return [[NSGraphicsContext currentContext] graphicsPort];
+    CGContextRef context = [[NSGraphicsContext currentContext] graphicsPort];
+
+    return context;
 }
 
 #pragma mark -

@@ -5,20 +5,26 @@
 
 #import "CPTTestAppBarChartController.h"
 
+@interface CPTTestAppBarChartController()
+
+@property (nonatomic, readwrite, strong) CPTXYGraph *barChart;
+
+@end
+
+#pragma mark -
+
 @implementation CPTTestAppBarChartController
 
 @synthesize timer;
-
--(BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation
-{
-    return YES;
-}
+@synthesize barChart;
 
 #pragma mark -
 #pragma mark Initialization and teardown
 
 -(void)viewDidAppear:(BOOL)animated
 {
+    [super viewDidAppear:animated];
+
     [self timerFired];
 #ifdef MEMORY_TEST
     self.timer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self
@@ -35,70 +41,56 @@
 #endif
 
     // Create barChart from theme
-    barChart = [[CPTXYGraph alloc] initWithFrame:CGRectZero];
-    CPTTheme *theme = [CPTTheme themeNamed:kCPTDarkGradientTheme];
-    [barChart applyTheme:theme];
+    CPTXYGraph *newGraph = [[CPTXYGraph alloc] initWithFrame:CGRectZero];
+    CPTTheme *theme      = [CPTTheme themeNamed:kCPTDarkGradientTheme];
+    [newGraph applyTheme:theme];
+    self.barChart = newGraph;
+
     CPTGraphHostingView *hostingView = (CPTGraphHostingView *)self.view;
-    hostingView.hostedGraph = barChart;
+    hostingView.hostedGraph = newGraph;
 
     // Border
-    barChart.plotAreaFrame.borderLineStyle = nil;
-    barChart.plotAreaFrame.cornerRadius    = 0.0;
-    barChart.plotAreaFrame.masksToBorder   = NO;
+    newGraph.plotAreaFrame.borderLineStyle = nil;
+    newGraph.plotAreaFrame.cornerRadius    = 0.0;
+    newGraph.plotAreaFrame.masksToBorder   = NO;
 
     // Paddings
-    barChart.paddingLeft   = 0.0;
-    barChart.paddingRight  = 0.0;
-    barChart.paddingTop    = 0.0;
-    barChart.paddingBottom = 0.0;
+    newGraph.paddingLeft   = 0.0;
+    newGraph.paddingRight  = 0.0;
+    newGraph.paddingTop    = 0.0;
+    newGraph.paddingBottom = 0.0;
 
-    barChart.plotAreaFrame.paddingLeft   = 70.0;
-    barChart.plotAreaFrame.paddingTop    = 20.0;
-    barChart.plotAreaFrame.paddingRight  = 20.0;
-    barChart.plotAreaFrame.paddingBottom = 80.0;
+    newGraph.plotAreaFrame.paddingLeft   = 70.0;
+    newGraph.plotAreaFrame.paddingTop    = 55.0;
+    newGraph.plotAreaFrame.paddingRight  = 20.0;
+    newGraph.plotAreaFrame.paddingBottom = 80.0;
 
     // Graph title
     NSString *lineOne = @"Graph Title";
     NSString *lineTwo = @"Line 2";
 
-    BOOL hasAttributedStringAdditions = (&NSFontAttributeName != NULL) &&
-                                        (&NSForegroundColorAttributeName != NULL) &&
-                                        (&NSParagraphStyleAttributeName != NULL);
+    NSMutableAttributedString *graphTitle = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n%@", lineOne, lineTwo]];
+    [graphTitle addAttribute:NSForegroundColorAttributeName value:[UIColor whiteColor] range:NSMakeRange(0, lineOne.length)];
+    [graphTitle addAttribute:NSForegroundColorAttributeName value:[UIColor grayColor] range:NSMakeRange(lineOne.length + 1, lineTwo.length)];
+    NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+    paragraphStyle.alignment = CPTTextAlignmentCenter;
+    [graphTitle addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:NSMakeRange(0, graphTitle.length)];
+    UIFont *titleFont = [UIFont fontWithName:@"Helvetica-Bold" size:16.0];
+    [graphTitle addAttribute:NSFontAttributeName value:titleFont range:NSMakeRange(0, lineOne.length)];
+    titleFont = [UIFont fontWithName:@"Helvetica" size:12.0];
+    [graphTitle addAttribute:NSFontAttributeName value:titleFont range:NSMakeRange(lineOne.length + 1, lineTwo.length)];
 
-    if ( hasAttributedStringAdditions ) {
-        NSMutableAttributedString *graphTitle = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n%@", lineOne, lineTwo]];
-        [graphTitle addAttribute:NSForegroundColorAttributeName value:[UIColor whiteColor] range:NSMakeRange(0, lineOne.length)];
-        [graphTitle addAttribute:NSForegroundColorAttributeName value:[UIColor grayColor] range:NSMakeRange(lineOne.length + 1, lineTwo.length)];
-        NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
-        paragraphStyle.alignment = CPTTextAlignmentCenter;
-        [graphTitle addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:NSMakeRange(0, graphTitle.length)];
-        UIFont *titleFont = [UIFont fontWithName:@"Helvetica-Bold" size:16.0];
-        [graphTitle addAttribute:NSFontAttributeName value:titleFont range:NSMakeRange(0, lineOne.length)];
-        titleFont = [UIFont fontWithName:@"Helvetica" size:12.0];
-        [graphTitle addAttribute:NSFontAttributeName value:titleFont range:NSMakeRange(lineOne.length + 1, lineTwo.length)];
+    newGraph.attributedTitle = graphTitle;
 
-        barChart.attributedTitle = graphTitle;
-    }
-    else {
-        CPTMutableTextStyle *titleStyle = [CPTMutableTextStyle textStyle];
-        titleStyle.color         = [CPTColor whiteColor];
-        titleStyle.fontName      = @"Helvetica-Bold";
-        titleStyle.fontSize      = 16.0;
-        titleStyle.textAlignment = CPTTextAlignmentCenter;
-
-        barChart.title          = [NSString stringWithFormat:@"%@\n%@", lineOne, lineTwo];
-        barChart.titleTextStyle = titleStyle;
-    }
-
-    barChart.titleDisplacement        = CGPointMake(0.0, -20.0);
-    barChart.titlePlotAreaFrameAnchor = CPTRectAnchorTop;
+    newGraph.titleDisplacement        = CGPointMake(0.0, -20.0);
+    newGraph.titlePlotAreaFrameAnchor = CPTRectAnchorTop;
 
     // Add plot space for horizontal bar charts
-    CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)barChart.defaultPlotSpace;
-    plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(0.0f) length:CPTDecimalFromFloat(300.0f)];
-    plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(0.0f) length:CPTDecimalFromFloat(16.0f)];
+    CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)newGraph.defaultPlotSpace;
+    plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(300.0)];
+    plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(16.0)];
 
-    CPTXYAxisSet *axisSet = (CPTXYAxisSet *)barChart.axisSet;
+    CPTXYAxisSet *axisSet = (CPTXYAxisSet *)newGraph.axisSet;
     CPTXYAxis *x          = axisSet.xAxis;
     x.axisLineStyle               = nil;
     x.majorTickLineStyle          = nil;
@@ -110,17 +102,17 @@
     x.titleOffset                 = 55.0;
 
     // Define some custom labels for the data elements
-    x.labelRotation  = M_PI_4;
+    x.labelRotation  = CPTFloat(M_PI_4);
     x.labelingPolicy = CPTAxisLabelingPolicyNone;
-    NSArray *customTickLocations = [NSArray arrayWithObjects:[NSDecimalNumber numberWithInt:1], [NSDecimalNumber numberWithInt:5], [NSDecimalNumber numberWithInt:10], [NSDecimalNumber numberWithInt:15], nil];
-    NSArray *xAxisLabels         = [NSArray arrayWithObjects:@"Label A", @"Label B", @"Label C", @"Label D", nil];
+    NSArray *customTickLocations = @[@1, @5, @10, @15];
+    NSArray *xAxisLabels         = @[@"Label A", @"Label B", @"Label C", @"Label D"];
     NSUInteger labelLocation     = 0;
     NSMutableSet *customLabels   = [NSMutableSet setWithCapacity:[xAxisLabels count]];
     for ( NSNumber *tickLocation in customTickLocations ) {
-        CPTAxisLabel *newLabel = [[CPTAxisLabel alloc] initWithText:[xAxisLabels objectAtIndex:labelLocation++] textStyle:x.labelTextStyle];
+        CPTAxisLabel *newLabel = [[CPTAxisLabel alloc] initWithText:xAxisLabels[labelLocation++] textStyle:x.labelTextStyle];
         newLabel.tickLocation = [tickLocation decimalValue];
         newLabel.offset       = x.labelOffset + x.majorTickLength;
-        newLabel.rotation     = M_PI_4;
+        newLabel.rotation     = CPTFloat(M_PI_4);
         [customLabels addObject:newLabel];
     }
 
@@ -142,7 +134,7 @@
     barPlot.dataSource = self;
     barPlot.barOffset  = CPTDecimalFromFloat(-0.25f);
     barPlot.identifier = @"Bar Plot 1";
-    [barChart addPlot:barPlot toPlotSpace:plotSpace];
+    [newGraph addPlot:barPlot toPlotSpace:plotSpace];
 
     // Second bar plot
     barPlot                 = [CPTBarPlot tubularBarPlotWithColor:[CPTColor blueColor] horizontalBars:NO];
@@ -151,7 +143,7 @@
     barPlot.barOffset       = CPTDecimalFromFloat(0.25f);
     barPlot.barCornerRadius = 2.0;
     barPlot.identifier      = @"Bar Plot 2";
-    [barChart addPlot:barPlot toPlotSpace:plotSpace];
+    [newGraph addPlot:barPlot toPlotSpace:plotSpace];
 }
 
 -(void)didReceiveMemoryWarning
@@ -168,20 +160,20 @@
     return 16;
 }
 
--(NSNumber *)numberForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndex:(NSUInteger)index
+-(id)numberForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndex:(NSUInteger)index
 {
-    NSDecimalNumber *num = nil;
+    NSNumber *num = nil;
 
     if ( [plot isKindOfClass:[CPTBarPlot class]] ) {
         switch ( fieldEnum ) {
             case CPTBarPlotFieldBarLocation:
-                num = (NSDecimalNumber *)[NSDecimalNumber numberWithUnsignedInteger:index];
+                num = @(index);
                 break;
 
             case CPTBarPlotFieldBarTip:
-                num = (NSDecimalNumber *)[NSDecimalNumber numberWithUnsignedInteger:(index + 1) * (index + 1)];
+                num = @( (index + 1) * (index + 1) );
                 if ( [plot.identifier isEqual:@"Bar Plot 2"] ) {
-                    num = [num decimalNumberBySubtracting:[NSDecimalNumber decimalNumberWithString:@"10"]];
+                    num = @(num.integerValue - 10);
                 }
                 break;
         }

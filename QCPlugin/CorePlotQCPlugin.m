@@ -4,11 +4,23 @@
 #define kQCPlugIn_Name        @"CorePlotQCPlugIn"
 #define kQCPlugIn_Description @"CorePlotQCPlugIn base plugin."
 
+#pragma mark -
+
+@interface CorePlotQCPlugIn()
+
+@property (nonatomic, readwrite, strong) NSMutableData *imageData;
+@property (nonatomic, readwrite, assign) CGContextRef bitmapContext;
+@property (nonatomic, readwrite, strong) id<QCPlugInOutputImageProvider> imageProvider;
+
+void drawErrorText(CGContextRef context, CGRect rect);
+
+@end
+
+#pragma mark -
+
 // Draws the string "ERROR" in the given context in big red letters
 void drawErrorText(CGContextRef context, CGRect rect)
 {
-    // :'(
-
     CGContextSaveGState(context);
 
     CGFloat w = rect.size.width;
@@ -40,7 +52,14 @@ void drawErrorText(CGContextRef context, CGRect rect)
     CGContextRestoreGState(context);
 }
 
+#pragma mark -
+
 @implementation CorePlotQCPlugIn
+
+@synthesize graph;
+@synthesize imageData;
+@synthesize bitmapContext;
+@synthesize imageProvider;
 
 // TODO: Make the port accessors dynamic, that way certain inputs can be removed based on settings and subclasses won't need the @dynamic declarations
 
@@ -70,10 +89,10 @@ void drawErrorText(CGContextRef context, CGRect rect)
      * Return a dictionary of attributes describing the plug-in (QCPlugInAttributeNameKey, QCPlugInAttributeDescriptionKey...).
      */
 
-    return [NSDictionary dictionaryWithObjectsAndKeys:
-            kQCPlugIn_Name, QCPlugInAttributeNameKey,
-            kQCPlugIn_Description, QCPlugInAttributeDescriptionKey,
-            nil];
+    return @{
+               QCPlugInAttributeNameKey: kQCPlugIn_Name,
+               QCPlugInAttributeDescriptionKey: kQCPlugIn_Description
+    };
 }
 
 +(QCPlugInExecutionMode)executionMode
@@ -94,7 +113,7 @@ void drawErrorText(CGContextRef context, CGRect rect)
     return kQCPlugInTimeModeNone;
 }
 
--(id)init
+-(instancetype)init
 {
     if ( (self = [super init]) ) {
         /*
@@ -103,12 +122,11 @@ void drawErrorText(CGContextRef context, CGRect rect)
 
         [self createGraph];
 
-        numberOfPlots = 0;
-        [self setNumberOfPlots:1];
+        self.numberOfPlots = 1;
 
         imageData     = nil;
         imageProvider = nil;
-        bitmapContext = nil;
+        bitmapContext = NULL;
     }
 
     return self;
@@ -116,34 +134,19 @@ void drawErrorText(CGContextRef context, CGRect rect)
 
 -(void)dealloc
 {
-    /*
-     * Release any resources created in -init.
-     */
-
     [self freeResources];
-
-    [super dealloc];
 }
 
 -(void)freeImageResources
 {
-    if ( bitmapContext ) {
-        CGContextRelease(bitmapContext);
-        bitmapContext = nil;
-    }
-    if ( imageData ) {
-        free(imageData);
-        imageData = nil;
-    }
+    self.bitmapContext = NULL;
+    self.imageData     = nil;
 }
 
 -(void)freeResources
 {
     [self freeImageResources];
-    if ( graph ) {
-        [graph release];
-        graph = nil;
-    }
+    self.graph = nil;
 }
 
 -(QCPlugInViewController *)createViewController
@@ -157,32 +160,30 @@ void drawErrorText(CGContextRef context, CGRect rect)
 }
 
 #pragma mark -
-#pragma markInput and output port configuration
+#pragma mark Input and output port configuration
 
 +(NSArray *)sortedPropertyPortKeys
 {
-    return [NSArray arrayWithObjects:
-            @"inputPixelsWide",
-            @"inputPixelsHigh",
-            @"inputPlotAreaColor",
-            @"inputAxisColor",
-            @"inputAxisLineWidth",
+    return @[@"inputPixelsWide",
+             @"inputPixelsHigh",
+             @"inputPlotAreaColor",
+             @"inputAxisColor",
+             @"inputAxisLineWidth",
 
-            @"inputXMin",
-            @"inputXMax",
-            @"inputYMin",
-            @"inputYMax",
+             @"inputXMin",
+             @"inputXMax",
+             @"inputYMin",
+             @"inputYMax",
 
-            @"inputXMajorIntervals",
-            @"inputYMajorIntervals",
-            @"inputAxisMajorTickLength",
-            @"inputAxisMajorTickWidth",
+             @"inputXMajorIntervals",
+             @"inputYMajorIntervals",
+             @"inputAxisMajorTickLength",
+             @"inputAxisMajorTickWidth",
 
-            @"inputXMinorIntervals",
-            @"inputYMinorIntervals",
-            @"inputAxisMinorTickLength",
-            @"inputAxisMinorTickWidth",
-            nil];
+             @"inputXMinorIntervals",
+             @"inputYMinorIntervals",
+             @"inputAxisMinorTickLength",
+             @"inputAxisMinorTickWidth"];
 }
 
 +(NSDictionary *)attributesForPropertyPortWithKey:(NSString *)key
@@ -192,161 +193,159 @@ void drawErrorText(CGContextRef context, CGRect rect)
      */
 
     if ( [key isEqualToString:@"inputXMin"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"X Range Min", QCPortAttributeNameKey,
-                [NSNumber numberWithFloat:-1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"X Range Min",
+                   QCPortAttributeDefaultValueKey: @ - 1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputXMax"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"X Range Max", QCPortAttributeNameKey,
-                [NSNumber numberWithFloat:1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"X Range Max",
+                   QCPortAttributeDefaultValueKey: @1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputYMin"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Y Range Min", QCPortAttributeNameKey,
-                [NSNumber numberWithFloat:-1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Y Range Min",
+                   QCPortAttributeDefaultValueKey: @ - 1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputYMax"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Y Range Max", QCPortAttributeNameKey,
-                [NSNumber numberWithFloat:1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Y Range Max",
+                   QCPortAttributeDefaultValueKey: @1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputXMajorIntervals"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"X Major Intervals", QCPortAttributeNameKey,
-                [NSNumber numberWithFloat:4], QCPortAttributeDefaultValueKey,
-                [NSNumber numberWithFloat:0], QCPortAttributeMinimumValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"X Major Intervals",
+                   QCPortAttributeDefaultValueKey: @4.0,
+                   QCPortAttributeMinimumValueKey: @0.0
+        };
     }
 
     if ( [key isEqualToString:@"inputYMajorIntervals"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Y Major Intervals", QCPortAttributeNameKey,
-                [NSNumber numberWithFloat:4], QCPortAttributeDefaultValueKey,
-                [NSNumber numberWithFloat:0], QCPortAttributeMinimumValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Y Major Intervals",
+                   QCPortAttributeDefaultValueKey: @4.0,
+                   QCPortAttributeMinimumValueKey: @0.0
+        };
     }
 
     if ( [key isEqualToString:@"inputXMinorIntervals"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"X Minor Intervals", QCPortAttributeNameKey,
-                [NSNumber numberWithInt:1], QCPortAttributeDefaultValueKey,
-                [NSNumber numberWithInt:0], QCPortAttributeMinimumValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"X Minor Intervals",
+                   QCPortAttributeDefaultValueKey: @1,
+                   QCPortAttributeMinimumValueKey: @0
+        };
     }
 
     if ( [key isEqualToString:@"inputYMinorIntervals"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Y Minor Intervals", QCPortAttributeNameKey,
-                [NSNumber numberWithInt:1], QCPortAttributeDefaultValueKey,
-                [NSNumber numberWithInt:0], QCPortAttributeMinimumValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Y Minor Intervals",
+                   QCPortAttributeDefaultValueKey: @1,
+                   QCPortAttributeMinimumValueKey: @0
+        };
     }
 
     if ( [key isEqualToString:@"inputAxisColor"] ) {
         CGColorRef axisColor = CGColorCreateGenericRGB(1.0, 1.0, 1.0, 1.0);
-        NSDictionary *result = [NSDictionary dictionaryWithObjectsAndKeys:
-                                @"Axis Color", QCPortAttributeNameKey,
-                                (id)axisColor, QCPortAttributeDefaultValueKey,
-                                nil];
-        CGColorRelease(axisColor);
+        NSDictionary *result = @{
+            QCPortAttributeNameKey: @"Axis Color",
+            QCPortAttributeDefaultValueKey: CFBridgingRelease(axisColor)
+        };
         return result;
     }
 
     if ( [key isEqualToString:@"inputAxisLineWidth"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Axis Line Width", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Axis Line Width",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputAxisMajorTickWidth"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Major Tick Width", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:2.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Major Tick Width",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @2.0
+        };
     }
 
     if ( [key isEqualToString:@"inputAxisMinorTickWidth"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Minor Tick Width", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Minor Tick Width",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputAxisMajorTickLength"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Major Tick Length", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:10.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Major Tick Length",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @10.0
+        };
     }
 
     if ( [key isEqualToString:@"inputAxisMinorTickLength"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Minor Tick Length", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:3.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Minor Tick Length",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @3.0
+        };
     }
 
     if ( [key isEqualToString:@"inputMajorGridLineWidth"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Major Grid Line Width", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:1.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Major Grid Line Width",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @1.0
+        };
     }
 
     if ( [key isEqualToString:@"inputMinorGridLineWidth"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Minor Grid Line Width", QCPortAttributeNameKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithDouble:0.0], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Minor Grid Line Width",
+                   QCPortAttributeMinimumValueKey: @0.0,
+                   QCPortAttributeDefaultValueKey: @0.0
+        };
     }
 
     if ( [key isEqualToString:@"inputPlotAreaColor"] ) {
         CGColorRef plotAreaColor = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 0.4);
-        NSDictionary *result     = [NSDictionary dictionaryWithObjectsAndKeys:
-                                    @"Plot Area Color", QCPortAttributeNameKey,
-                                    (id)plotAreaColor, QCPortAttributeDefaultValueKey,
-                                    nil];
-        CGColorRelease(plotAreaColor);
+        NSDictionary *result     = @{
+            QCPortAttributeNameKey: @"Plot Area Color",
+            QCPortAttributeDefaultValueKey: CFBridgingRelease(plotAreaColor)
+        };
         return result;
     }
 
     if ( [key isEqualToString:@"inputPixelsWide"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Pixels Wide", QCPortAttributeNameKey,
-                [NSNumber numberWithInt:1], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithInt:512], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Pixels Wide",
+                   QCPortAttributeMinimumValueKey: @1,
+                   QCPortAttributeDefaultValueKey: @512
+        };
     }
 
     if ( [key isEqualToString:@"inputPixelsHigh"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Pixels High", QCPortAttributeNameKey,
-                [NSNumber numberWithInt:1], QCPortAttributeMinimumValueKey,
-                [NSNumber numberWithInt:512], QCPortAttributeDefaultValueKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Pixels High",
+                   QCPortAttributeMinimumValueKey: @1,
+                   QCPortAttributeDefaultValueKey: @512
+        };
     }
 
     if ( [key isEqualToString:@"outputImage"] ) {
-        return [NSDictionary dictionaryWithObjectsAndKeys:
-                @"Image", QCPortAttributeNameKey,
-                nil];
+        return @{
+                   QCPortAttributeNameKey: @"Image"
+        };
     }
 
     return nil;
@@ -357,18 +356,19 @@ void drawErrorText(CGContextRef context, CGRect rect)
 
 -(void)createGraph
 {
-    if ( !graph ) {
+    if ( !self.graph ) {
         // Create graph from theme
-        CPTTheme *theme = [CPTTheme themeNamed:kCPTPlainBlackTheme];
-        graph = (CPTXYGraph *)[theme newGraph];
+        CPTTheme *theme      = [CPTTheme themeNamed:kCPTPlainBlackTheme];
+        CPTXYGraph *newGraph = (CPTXYGraph *)[theme newGraph];
+        self.graph = newGraph;
 
         // Setup scatter plot space
-        CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)graph.defaultPlotSpace;
+        CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)newGraph.defaultPlotSpace;
         plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(1.0) length:CPTDecimalFromFloat(1.0)];
         plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(-1.0) length:CPTDecimalFromFloat(1.0)];
 
         // Axes
-        CPTXYAxisSet *axisSet = (CPTXYAxisSet *)graph.axisSet;
+        CPTXYAxisSet *axisSet = (CPTXYAxisSet *)newGraph.axisSet;
 
         CPTXYAxis *x = axisSet.xAxis;
         x.majorIntervalLength   = CPTDecimalFromFloat(0.5);
@@ -419,8 +419,10 @@ void drawErrorText(CGContextRef context, CGRect rect)
 
 -(void)addPlots:(NSUInteger)count
 {
-    for ( int i = 0; i < count; i++ ) {
-        [self addPlotWithIndex:i + numberOfPlots];
+    NSUInteger plotCount = self.numberOfPlots;
+
+    for ( NSUInteger i = 0; i < count; i++ ) {
+        [self addPlotWithIndex:i + plotCount];
     }
 }
 
@@ -428,7 +430,7 @@ void drawErrorText(CGContextRef context, CGRect rect)
 {
     CPTColor *axisColor = [CPTColor colorWithCGColor:self.inputAxisColor];
 
-    CPTXYAxisSet *set              = (CPTXYAxisSet *)graph.axisSet;
+    CPTXYAxisSet *set              = (CPTXYAxisSet *)self.graph.axisSet;
     CPTMutableLineStyle *lineStyle = [CPTMutableLineStyle lineStyle];
 
     lineStyle.lineColor     = axisColor;
@@ -495,25 +497,27 @@ void drawErrorText(CGContextRef context, CGRect rect)
     return YES;
 }
 
--(id)dataLineColor:(NSUInteger)index
+-(CGColorRef)dataLineColor:(NSUInteger)index
 {
     NSString *key = [NSString stringWithFormat:@"plotDataLineColor%lu", (unsigned long)index];
 
-    return [self valueForInputKey:key];
+    return (__bridge CGColorRef)([self valueForInputKey:key]);
 }
 
 -(CGFloat)dataLineWidth:(NSUInteger)index
 {
     NSString *key = [NSString stringWithFormat:@"plotDataLineWidth%lu", (unsigned long)index];
 
-    return [[self valueForInputKey:key] floatValue];
+    NSNumber *inputValue = [self valueForInputKey:key];
+
+    return inputValue.doubleValue;
 }
 
--(id)areaFillColor:(NSUInteger)index
+-(CGColorRef)areaFillColor:(NSUInteger)index
 {
     NSString *key = [NSString stringWithFormat:@"plotFillColor%lu", (unsigned long)index];
 
-    return [self valueForInputKey:key];
+    return (__bridge CGColorRef)([self valueForInputKey:key]);
 }
 
 -(CGImageRef)newAreaFillImage:(NSUInteger)index
@@ -534,7 +538,8 @@ void drawErrorText(CGContextRef context, CGRect rect)
     CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
     [img lockBufferRepresentationWithPixelFormat:pixelFormat colorSpace:rgbColorSpace forBounds:[img imageBounds]];
     CGColorSpaceRelease(rgbColorSpace);
-    void *baseAddress           = (void *)[img bufferBaseAddress];
+
+    const void *baseAddress     = [img bufferBaseAddress];
     NSUInteger pixelsWide       = [img bufferPixelsWide];
     NSUInteger pixelsHigh       = [img bufferPixelsHigh];
     NSUInteger bitsPerComponent = 8;
@@ -547,7 +552,7 @@ void drawErrorText(CGContextRef context, CGRect rect)
                                                     bitsPerComponent,
                                                     bytesPerRow,
                                                     colorSpace,
-                                                    kCGImageAlphaNoneSkipLast);
+                                                    (CGBitmapInfo)kCGImageAlphaNoneSkipLast);
 
     CGImageRef imageRef = CGBitmapContextCreateImage(imgContext);
 
@@ -566,34 +571,42 @@ static void _BufferReleaseCallback(const void *address, void *context)
 -(void)createImageResourcesWithContext:(id<QCPlugInContext>)context
 {
     // Create a CG bitmap for drawing.  The image data is released when QC calls _BufferReleaseCallback
-    CGSize boundsSize           = graph.bounds.size;
+    CGSize boundsSize           = self.graph.bounds.size;
     NSUInteger bitsPerComponent = 8;
-    NSUInteger rowBytes         = (NSInteger)boundsSize.width * 4;
+    size_t rowBytes             = (size_t)boundsSize.width * 4;
 
     if ( rowBytes % 16 ) {
         rowBytes = ( (rowBytes / 16) + 1 ) * 16;
     }
 
-    if ( !imageData ) {
-        imageData     = valloc(rowBytes * boundsSize.height);
-        bitmapContext = CGBitmapContextCreate(imageData,
-                                              boundsSize.width,
-                                              boundsSize.height,
-                                              bitsPerComponent,
-                                              rowBytes,
-                                              [context colorSpace],
-                                              kCGImageAlphaPremultipliedFirst);
+    if ( !self.imageData ) {
+        size_t bufferLength = rowBytes * (size_t)boundsSize.height;
+        void *buffer        = valloc(bufferLength);
+
+        if ( !buffer ) {
+            NSLog(@"Couldn't allocate memory for image data");
+            return;
+        }
+
+        self.imageData = [NSMutableData dataWithBytesNoCopy:buffer length:bufferLength];
     }
-    if ( !imageData ) {
-        NSLog(@"Couldn't allocate memory for image data");
-        return;
-    }
-    if ( !bitmapContext ) {
-        free(imageData);
-        imageData = nil;
+
+    CGContextRef newContext = CGBitmapContextCreate(self.imageData.mutableBytes,
+                                                    (size_t)boundsSize.width,
+                                                    (size_t)boundsSize.height,
+                                                    bitsPerComponent,
+                                                    rowBytes,
+                                                    [context colorSpace],
+                                                    (CGBitmapInfo)kCGImageAlphaPremultipliedFirst);
+    self.bitmapContext = newContext;
+
+    if ( !newContext ) {
+        self.imageData = nil;
         NSLog(@"Couldn't create bitmap context");
         return;
     }
+
+    CGContextRelease(newContext);
 
     if ( rowBytes % 16 ) {
         rowBytes = ( (rowBytes / 16) + 1 ) * 16;
@@ -601,43 +614,48 @@ static void _BufferReleaseCallback(const void *address, void *context)
 
     // Note: I don't have a PPC to test on so this may or may not cause some color issues
 #if __BIG_ENDIAN__
-    imageProvider = [context outputImageProviderFromBufferWithPixelFormat:QCPlugInPixelFormatBGRA8
-                                                               pixelsWide:(NSInteger)boundsSize.width
-                                                               pixelsHigh:(NSInteger)boundsSize.height
-                                                              baseAddress:imageData
-                                                              bytesPerRow:rowBytes
-                                                          releaseCallback:_BufferReleaseCallback
-                                                           releaseContext:NULL
-                                                               colorSpace:[context colorSpace]
-                                                         shouldColorMatch:YES];
+    self.imageProvider = [context outputImageProviderFromBufferWithPixelFormat:QCPlugInPixelFormatBGRA8
+                                                                    pixelsWide:(NSUInteger)boundsSize.width
+                                                                    pixelsHigh:(NSUInteger)boundsSize.height
+                                                                   baseAddress:self.imageData.bytes
+                                                                   bytesPerRow:rowBytes
+                                                               releaseCallback:_BufferReleaseCallback
+                                                                releaseContext:NULL
+                                                                    colorSpace:[context colorSpace]
+                                                              shouldColorMatch:YES];
 #else
-    imageProvider = [context outputImageProviderFromBufferWithPixelFormat:QCPlugInPixelFormatARGB8
-                                                               pixelsWide:(NSInteger)boundsSize.width
-                                                               pixelsHigh:(NSInteger)boundsSize.height
-                                                              baseAddress:imageData
-                                                              bytesPerRow:rowBytes
-                                                          releaseCallback:_BufferReleaseCallback
-                                                           releaseContext:NULL
-                                                               colorSpace:[context colorSpace]
-                                                         shouldColorMatch:YES];
+    self.imageProvider = [context outputImageProviderFromBufferWithPixelFormat:QCPlugInPixelFormatARGB8
+                                                                    pixelsWide:(NSUInteger)boundsSize.width
+                                                                    pixelsHigh:(NSUInteger)boundsSize.height
+                                                                   baseAddress:self.imageData.bytes
+                                                                   bytesPerRow:rowBytes
+                                                               releaseCallback:_BufferReleaseCallback
+                                                                releaseContext:NULL
+                                                                    colorSpace:[context colorSpace]
+                                                              shouldColorMatch:YES];
 #endif
 }
 
 #pragma mark -
-#pragma markData source methods
+#pragma mark Data source methods
 
 -(NSUInteger)numberOfRecordsForPlot:(CPTPlot *)plot
 {
     return 0;
 }
 
--(NSNumber *)numberForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndex:(NSUInteger)index
+-(id)numberForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndex:(NSUInteger)index
 {
-    return [NSNumber numberWithInt:0];
+    return @0;
 }
 
 #pragma mark -
-#pragma markMethods for dealing with plugin keys
+#pragma mark Methods for dealing with plugin keys
+
+-(NSUInteger)numberOfPlots
+{
+    return numberOfPlots;
+}
 
 -(void)setNumberOfPlots:(NSUInteger)number
 {
@@ -655,12 +673,10 @@ static void _BufferReleaseCallback(const void *address, void *context)
 
 +(NSArray *)plugInKeys
 {
-    return [NSArray arrayWithObjects:
-            @"numberOfPlots",
-            nil];
+    return @[@"numberOfPlots"];
 }
 
--(id)serializedValueForKey:(NSString *)key;
+-(id)serializedValueForKey:(NSString *)key
 {
     /*
      * Provide custom serialization for the plug-in internal settings that are not values complying to the <NSCoding> protocol.
@@ -668,7 +684,7 @@ static void _BufferReleaseCallback(const void *address, void *context)
      */
 
     if ( [key isEqualToString:@"numberOfPlots"] ) {
-        return [NSNumber numberWithInt:self.numberOfPlots];
+        return @(self.numberOfPlots);
     }
     else {
         return [super serializedValueForKey:key];
@@ -683,10 +699,21 @@ static void _BufferReleaseCallback(const void *address, void *context)
      */
 
     if ( [key isEqualToString:@"numberOfPlots"] ) {
-        [self setNumberOfPlots:MAX(1, [serializedValue intValue])];
+        [self setNumberOfPlots:MAX(1, [(NSNumber *)serializedValue unsignedIntegerValue])];
     }
     else {
         [super setSerializedValue:serializedValue forKey:key];
+    }
+}
+
+#pragma mark -
+#pragma mark Accessors
+
+-(void)setBitmapContext:(CGContextRef)newContext
+{
+    if ( newContext != bitmapContext ) {
+        CGContextRelease(bitmapContext);
+        bitmapContext = CGContextRetain(newContext);
     }
 }
 
@@ -723,59 +750,58 @@ static void _BufferReleaseCallback(const void *address, void *context)
      */
 
     // Configure the graph area
-    CGRect frame = CGRectMake( 0.0, 0.0, MAX(1, self.inputPixelsWide), MAX(1, self.inputPixelsHigh) );
+    CGRect frame = CPTRectMake( 0.0, 0.0, MAX(1, self.inputPixelsWide), MAX(1, self.inputPixelsHigh) );
 
-    [graph setBounds:frame];
+    self.graph.bounds = frame;
 
-    graph.paddingLeft   = 0.0;
-    graph.paddingRight  = 0.0;
-    graph.paddingTop    = 0.0;
-    graph.paddingBottom = 0.0;
+    self.graph.paddingLeft   = 0.0;
+    self.graph.paddingRight  = 0.0;
+    self.graph.paddingTop    = 0.0;
+    self.graph.paddingBottom = 0.0;
 
     // Perform some sanity checks.  If there is a configuration error set the error flag so that a message is displayed
     if ( (self.inputXMax <= self.inputXMin) || (self.inputYMax <= self.inputYMin) ) {
         return NO;
     }
 
-    [graph layoutSublayers];
-    [graph layoutIfNeeded];
-
-    graph.fill               = nil;
-    graph.plotAreaFrame.fill = [CPTFill fillWithColor:[CPTColor colorWithCGColor:self.inputPlotAreaColor]];
+    self.graph.fill               = nil;
+    self.graph.plotAreaFrame.fill = [CPTFill fillWithColor:[CPTColor colorWithCGColor:self.inputPlotAreaColor]];
     if ( self.inputAxisLineWidth > 0.0 ) {
         CPTMutableLineStyle *lineStyle = [CPTMutableLineStyle lineStyle];
-        lineStyle.lineWidth                 = self.inputAxisLineWidth;
-        lineStyle.lineColor                 = [CPTColor colorWithCGColor:self.inputAxisColor];
-        graph.plotAreaFrame.borderLineStyle = lineStyle;
+        lineStyle.lineWidth                      = self.inputAxisLineWidth;
+        lineStyle.lineColor                      = [CPTColor colorWithCGColor:self.inputAxisColor];
+        self.graph.plotAreaFrame.borderLineStyle = lineStyle;
     }
     else {
-        graph.plotAreaFrame.borderLineStyle = nil;
+        self.graph.plotAreaFrame.borderLineStyle = nil;
     }
 
     // Configure the plot space and axis sets
-    CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)graph.defaultPlotSpace;
-    plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(self.inputXMin) length:CPTDecimalFromFloat(self.inputXMax - self.inputXMin)];
-    plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromFloat(self.inputYMin) length:CPTDecimalFromFloat(self.inputYMax - self.inputYMin)];
+    CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
+    plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(self.inputXMin) length:CPTDecimalFromDouble(self.inputXMax - self.inputXMin)];
+    plotSpace.yRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(self.inputYMin) length:CPTDecimalFromDouble(self.inputYMax - self.inputYMin)];
 
     [self configureAxis];
 
-    [graph layoutSublayers];
-    [graph setNeedsDisplay];
+    [self.graph layoutIfNeeded];
+    [self.graph setNeedsDisplay];
 
     return YES;
 }
 
 @end
 
+#pragma mark -
+
 @implementation CorePlotQCPlugIn(Execution)
 
 -(BOOL)execute:(id<QCPlugInContext>)context atTime:(NSTimeInterval)time withArguments:(NSDictionary *)arguments
 {
     // Configure the plot for drawing
-    configurationCheck = [self configureGraph];
+    BOOL configurationCheck = [self configureGraph];
 
     // If the output image dimensions change recreate the image resources
-    if ( [self didValueForInputKeyChange:@"inputPixelsWide"] || [self didValueForInputKeyChange:@"inputPixelsHigh"] || !imageProvider ) {
+    if ( [self didValueForInputKeyChange:@"inputPixelsWide"] || [self didValueForInputKeyChange:@"inputPixelsHigh"] || !self.imageProvider ) {
         [self freeImageResources];
     }
 
@@ -783,25 +809,26 @@ static void _BufferReleaseCallback(const void *address, void *context)
     [self createImageResourcesWithContext:context];
 
     // Draw the plot ...
-    CGSize boundsSize = graph.bounds.size;
-    CGContextClearRect( bitmapContext, CGRectMake(0.0, 0.0, boundsSize.width, boundsSize.height) );
-    CGContextSetRGBFillColor(bitmapContext, 0.0, 0.0, 0.0, 0.0);
-    CGContextFillRect( bitmapContext, CGRectMake(0, 0, boundsSize.width, boundsSize.height) );
-    CGContextSetAllowsAntialiasing(bitmapContext, true);
+    CGSize boundsSize      = self.graph.bounds.size;
+    CGContextRef bmContext = self.bitmapContext;
+    CGContextClearRect( bmContext, CPTRectMake(0.0, 0.0, boundsSize.width, boundsSize.height) );
+    CGContextSetRGBFillColor(bmContext, 0.0, 0.0, 0.0, 0.0);
+    CGContextFillRect( bmContext, CPTRectMake(0, 0, boundsSize.width, boundsSize.height) );
+    CGContextSetAllowsAntialiasing(bmContext, true);
 
     if ( configurationCheck ) {
         [self configurePlots];
-        [graph recursivelyRenderInContext:bitmapContext];
+        [self.graph recursivelyRenderInContext:bmContext];
     }
     else {
-        drawErrorText( bitmapContext, CGRectMake(0, 0, self.inputPixelsWide, self.inputPixelsHigh) );
+        drawErrorText( bmContext, CPTRectMake(0, 0, self.inputPixelsWide, self.inputPixelsHigh) );
     }
 
     //CGContextSetAllowsAntialiasing(bitmapContext, false);
-    CGContextFlush(bitmapContext);
+    CGContextFlush(bmContext);
 
     // ... and put it on the output port
-    self.outputImage = imageProvider;
+    self.outputImage = self.imageProvider;
 
     return YES;
 }
